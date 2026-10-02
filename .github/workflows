@@ -1,0 +1,37 @@
+name: Trigger Vercel deployment
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+concurrency:
+  group: vercel-trigger-master
+  cancel-in-progress: true
+
+jobs:
+  trigger:
+    if: >
+      github.actor != 'github-actions[bot]' &&
+      !contains(github.event.head_commit.message, '[vercel-trigger]')
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Create authorized deployment commit
+        run: |
+          git config user.name "MwPersonal"
+          git config user.email "123180206+MwPersonal@users.noreply.github.com"
+
+          git commit --allow-empty \
+            -m "chore: trigger Vercel deployment [vercel-trigger]"
+
+          git push origin HEAD:master
