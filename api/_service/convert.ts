@@ -1,5 +1,5 @@
-import type { PaperFormat } from 'puppeteer-core'
-import { connectToObscura } from './obscura.js'
+import type { PaperFormat, PDFMargin } from 'puppeteer-core'
+import { getBrowser } from './chromium.js'
 
 export interface ConvertOptions {
 	/**
@@ -20,7 +20,7 @@ export interface ConvertOptions {
 	timeout?: number
 	/**
 	 * Navigation settle level: 'domcontentloaded' | 'load' | 'networkidle2' | 'networkidle0'
-	 * (default: 'networkidle2')
+	 * (default: 'load')
 	 */
 	waitUntil?: 'domcontentloaded' | 'load' | 'networkidle2' | 'networkidle0'
 	/**
@@ -40,14 +40,17 @@ export interface ConvertOptions {
 	 */
 	scale?: number
 	/**
-	 * Paper margins (default: ~10mm)
+	 * Paper margins
 	 */
-	margin?: {
-		top?: string | number
-		bottom?: string | number
-		left?: string | number
-		right?: string | number
-	}
+	margin?: PDFMargin
+	/**
+	 * Specific page ranges to render (e.g. '1', '1-2')
+	 */
+	pageRanges?: string
+	/**
+	 * Emulate CSS media type ('screen' | 'print', default: 'screen')
+	 */
+	emulateMediaType?: 'screen' | 'print'
 }
 
 /**
@@ -78,14 +81,14 @@ export function normalizeUrl(rawUrl: string): string {
 }
 
 /**
- * Converts a webpage to a PDF buffer using Obscura.
+ * Converts a webpage to a PDF buffer using native Chromium.
  */
 export async function getPdf(rawUrl: string, options: ConvertOptions = {}): Promise<Buffer> {
 	const url = normalizeUrl(rawUrl)
-	const timeout = options.timeout ?? 20000
+	const timeout = options.timeout ?? 25000
 	const waitUntil = options.waitUntil ?? 'load'
 
-	const browser = await connectToObscura()
+	const browser = await getBrowser()
 	let page: any = null
 
 	try {
@@ -143,59 +146,33 @@ export async function getPdf(rawUrl: string, options: ConvertOptions = {}): Prom
 			}
 		}
 
-		// Wait for web fonts to load and layout to settle
+		// Wait for web fonts to load
 		try {
 			await page.evaluate(async () => {
 				if (document.fonts?.ready) {
 					await document.fonts.ready
 				}
-				await new Promise((resolve) => setTimeout(resolve, 80))
 			})
 		} catch {
 			// Ignore if document.fonts is not supported
 		}
 
-		// Inject print styling for sharp text, images and SVG edges
+		// Emulate requested media type (default: 'screen')
 		try {
-			await page.evaluate(() => {
-				const style = document.createElement('style')
-				style.textContent = `
-					*, *::before, *::after {
-						-webkit-font-smoothing: antialiased !important;
-						-moz-osx-font-smoothing: grayscale !important;
-						text-rendering: geometricPrecision !important;
-					}
-					svg, rect, table {
-						shape-rendering: crispEdges !important;
-					}
-					img {
-						image-rendering: -webkit-optimize-contrast !important;
-					}
-					html, body {
-						-webkit-print-color-adjust: exact !important;
-						print-color-adjust: exact !important;
-					}
-				`
-				document.head?.appendChild(style)
-			})
+			await page.emulateMediaType(options.emulateMediaType ?? 'screen')
 		} catch {
-			// Ignore if evaluation is restricted
+			// Ignore if media emulation fails
 		}
 
-		// Emulate screen media if supported
-		try {
-			await page.emulateMediaType('screen')
-		} catch {
-			// Supported via native style in Obscura
-		}
-
-		// Request PDF output from Obscura CDP
+		// Native Chrome Page.printToPDF
 		const pdfData = await page.pdf({
 			format: options.format ?? 'A4',
 			landscape: options.landscape ?? false,
 			printBackground: options.printBackground ?? true,
 			scale: options.scale ?? 1,
 			margin: options.margin,
+			pageRanges: options.pageRanges,
+			preferCSSPageSize: true,
 		})
 
 		return Buffer.from(pdfData)
@@ -203,6 +180,5 @@ export async function getPdf(rawUrl: string, options: ConvertOptions = {}): Prom
 		if (page) {
 			await page.close().catch(() => {})
 		}
-		await browser.disconnect().catch(() => {})
 	}
 }

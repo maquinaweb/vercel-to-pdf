@@ -1,7 +1,7 @@
 {
 	"name": "vercel-pdf-converter",
-	"version": "2.0.0",
-	"description": "Vercel serverless function which generates PDFs from webpages using Obscura headless browser.",
+	"version": "2.1.0",
+	"description": "Vercel serverless function which generates high-fidelity vector PDFs from webpages using Chromium and Puppeteer.",
 	"type": "module",
 	"scripts": {
 		"dev": "vercel dev",
@@ -14,11 +14,10 @@
 		"check": "biome check --write .",
 		"typecheck": "tsc --noEmit",
 		"test": "bun test",
-		"download-obscura": "bun run scripts/download-obscura.ts",
-		"package:vendor": "bun run scripts/package-vendor.ts",
 		"deploy": "vercel deploy --prod"
 	},
 	"dependencies": {
+		"@sparticuz/chromium-min": "153.0.0",
 		"puppeteer-core": "^25.12.0"
 	},
 	"devDependencies": {

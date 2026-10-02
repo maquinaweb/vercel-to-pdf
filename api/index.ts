@@ -60,6 +60,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 			}
 		}
 
+		const pageRanges = (req.query.pageRanges as string) || undefined
+		const emulateMediaType =
+			(req.query.mediaType as 'screen' | 'print') ||
+			(req.query.emulateMediaType as 'screen' | 'print') ||
+			undefined
+
 		console.log(`[Convert] Converting URL to PDF: ${targetUrl}`)
 
 		const pdfBuffer = await getPdf(targetUrl, {
@@ -69,6 +75,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 			viewport,
 			scale,
 			margin,
+			pageRanges,
+			emulateMediaType,
 		})
 
 		if (!pdfBuffer || pdfBuffer.length === 0) {
