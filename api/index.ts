@@ -34,7 +34,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
 		const format = (req.query.format as PaperFormat) || 'A4'
 		const landscape = req.query.landscape === 'true' || req.query.landscape === '1'
-		const waitUntil = (req.query.waitUntil as ConvertOptions['waitUntil']) || 'networkidle2'
+		const waitUntil = (req.query.waitUntil as ConvertOptions['waitUntil']) || 'load'
 
 		console.log(`[Convert] Converting URL to PDF: ${targetUrl}`)
 

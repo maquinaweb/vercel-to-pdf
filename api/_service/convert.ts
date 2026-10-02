@@ -69,8 +69,8 @@ export function normalizeUrl(rawUrl: string): string {
  */
 export async function getPdf(rawUrl: string, options: ConvertOptions = {}): Promise<Buffer> {
 	const url = normalizeUrl(rawUrl)
-	const timeout = options.timeout ?? 30000
-	const waitUntil = options.waitUntil ?? 'networkidle2'
+	const timeout = options.timeout ?? 20000
+	const waitUntil = options.waitUntil ?? 'load'
 
 	const browser = await connectToObscura()
 	let page: any = null
@@ -82,7 +82,18 @@ export async function getPdf(rawUrl: string, options: ConvertOptions = {}): Prom
 		await page.setViewport(viewport).catch(() => {})
 
 		// Visit URL with specified wait condition
-		await page.goto(url, { waitUntil, timeout })
+		try {
+			await page.goto(url, { waitUntil, timeout })
+		} catch (gotoErr: any) {
+			if (waitUntil !== 'load' && gotoErr.message?.includes('timeout')) {
+				console.warn(
+					`[Convert] Navigation with '${waitUntil}' timed out. Falling back to 'load'...`,
+				)
+				await page.goto(url, { waitUntil: 'load', timeout: 10000 })
+			} else {
+				throw gotoErr
+			}
+		}
 
 		// Scroll to bottom of page to force loading of lazy loaded images
 		if (options.scrollLazyLoad !== false) {
