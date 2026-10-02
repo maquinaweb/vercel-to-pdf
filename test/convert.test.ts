@@ -15,6 +15,12 @@ describe('URL Normalization', () => {
 		expect(normalizeUrl('https://example.com')).toBe('https://example.com')
 	})
 
+	it('should fix collapsed slashes from path routing', () => {
+		expect(normalizeUrl('https:/www.google.com/')).toBe('https://www.google.com/')
+		expect(normalizeUrl('http:/example.com')).toBe('http://example.com')
+		expect(normalizeUrl('https:///www.google.com/')).toBe('https://www.google.com/')
+	})
+
 	it('should throw an error on empty URL', () => {
 		expect(() => normalizeUrl('')).toThrow('URL cannot be empty')
 		expect(() => normalizeUrl('   ')).toThrow('URL cannot be empty')

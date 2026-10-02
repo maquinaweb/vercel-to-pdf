@@ -2,7 +2,8 @@ import { type ChildProcess, spawn, spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { chmod, unlink } from 'node:fs/promises'
 import { arch, platform } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { brotliDecompressSync } from 'node:zlib'
 import puppeteer, { type Browser } from 'puppeteer-core'
 
@@ -75,10 +76,17 @@ export async function ensureBinaryAvailable(configuredPath?: string): Promise<st
 	}
 
 	// 5. Check if pre-bundled compressed binary exists (e.g. deployed to Vercel in vendor/)
+	const currentDir =
+		typeof import.meta !== 'undefined' && import.meta.url
+			? dirname(fileURLToPath(import.meta.url))
+			: process.cwd()
+
 	const bundledBrCandidates = [
 		join(process.cwd(), 'vendor', 'obscura-linux-x64.br'),
 		join(process.cwd(), 'bin', 'obscura.br'),
-		join(import.meta.dir, '..', '..', 'vendor', 'obscura-linux-x64.br'),
+		join(currentDir, '..', '..', 'vendor', 'obscura-linux-x64.br'),
+		join(currentDir, '..', 'vendor', 'obscura-linux-x64.br'),
+		join('/var/task', 'vendor', 'obscura-linux-x64.br'),
 	]
 
 	for (const brPath of bundledBrCandidates) {
@@ -119,7 +127,7 @@ export async function ensureBinaryAvailable(configuredPath?: string): Promise<st
 	}
 
 	const arrayBuffer = await res.arrayBuffer()
-	await Bun.write(archivePath, arrayBuffer)
+	writeFileSync(archivePath, Buffer.from(arrayBuffer))
 
 	console.log(`[Obscura] Extracting ${asset} into ${targetDir}...`)
 	if (asset.endsWith('.tar.gz')) {

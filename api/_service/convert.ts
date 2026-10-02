@@ -41,9 +41,14 @@ export interface ConvertOptions {
  * Normalizes and validates incoming URL string.
  */
 export function normalizeUrl(rawUrl: string): string {
-	const trimmed = rawUrl.trim()
+	let trimmed = rawUrl.trim()
 	if (!trimmed) {
 		throw new Error('URL cannot be empty')
+	}
+
+	// Fix collapsed slashes from URL path routing (e.g. https:/www.google.com -> https://www.google.com)
+	if (/^https?:\/+[^/]/i.test(trimmed)) {
+		trimmed = trimmed.replace(/^(https?):\/+/i, '$1://')
 	}
 
 	let finalUrl = trimmed
