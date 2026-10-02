@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import type { PaperFormat } from 'puppeteer-core'
-import { type ConvertOptions, getPdf, normalizeUrl } from '../service/convert'
+import { type ConvertOptions, getPdf, normalizeUrl } from './_service/convert.js'
 
 const CACHE_MAX_AGE = 24 * 60 * 60 // 24 hours in seconds
 
