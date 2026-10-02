@@ -6,6 +6,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { brotliDecompressSync } from 'node:zlib'
 import puppeteer, { type Browser } from 'puppeteer-core'
+import { patchElfGlibcForAmazonLinux } from './elf-patch.js'
 
 export interface ObscuraConfig {
 	wsEndpoint?: string
@@ -94,6 +95,9 @@ export async function ensureBinaryAvailable(configuredPath?: string): Promise<st
 			console.log(`[Obscura] Found pre-bundled binary at ${brPath}. Decompressing to ${tmpPath}...`)
 			const compressed = readFileSync(brPath)
 			const decompressed = brotliDecompressSync(compressed)
+			if (platform() === 'linux') {
+				patchElfGlibcForAmazonLinux(decompressed)
+			}
 			writeFileSync(tmpPath, decompressed, { mode: 0o755 })
 			if (platform() !== 'win32') {
 				await chmod(tmpPath, 0o755)
@@ -147,6 +151,14 @@ export async function ensureBinaryAvailable(configuredPath?: string): Promise<st
 	await unlink(archivePath).catch(() => {})
 
 	if (platform() !== 'win32' && existsSync(tmpPath)) {
+		try {
+			const raw = readFileSync(tmpPath)
+			if (patchElfGlibcForAmazonLinux(raw)) {
+				writeFileSync(tmpPath, raw, { mode: 0o755 })
+			}
+		} catch {
+			// Best-effort patch
+		}
 		await chmod(tmpPath, 0o755)
 	}
 
@@ -253,6 +265,17 @@ export async function ensureObscura(config = getObscuraConfig()): Promise<{
 				detached: false,
 			})
 
+			let processStderr = ''
+			obscuraProcess.stderr?.on('data', (chunk) => {
+				processStderr += chunk.toString()
+			})
+			obscuraProcess.stdout?.on('data', (chunk) => {
+				const str = chunk.toString()
+				if (str.includes('Headless Browser') || str.includes('CDP server:')) {
+					console.log(`[Obscura] ${str.trim()}`)
+				}
+			})
+
 			obscuraProcess.on('error', (err) => {
 				console.error('[Obscura] Process error:', err.message)
 				obscuraProcess = null
@@ -260,7 +283,9 @@ export async function ensureObscura(config = getObscuraConfig()): Promise<{
 
 			obscuraProcess.on('exit', (code, signal) => {
 				if (code !== 0 && code !== null) {
-					console.warn(`[Obscura] Process exited with code ${code} (signal: ${signal})`)
+					console.warn(
+						`[Obscura] Process exited with code ${code} (signal: ${signal}). Stderr: ${processStderr.trim()}`,
+					)
 				}
 				obscuraProcess = null
 			})
@@ -277,8 +302,9 @@ export async function ensureObscura(config = getObscuraConfig()): Promise<{
 			}
 
 			if (!isUp) {
+				const reason = processStderr.trim() ? ` (process stderr: ${processStderr.trim()})` : ''
 				throw new Error(
-					`Obscura server failed to start on ${serverUrl}. Ensure the binary is installed or set OBSCURA_WS_ENDPOINT.`,
+					`Obscura server failed to start on ${serverUrl}${reason}. Ensure the binary is installed or set OBSCURA_WS_ENDPOINT.`,
 				)
 			}
 

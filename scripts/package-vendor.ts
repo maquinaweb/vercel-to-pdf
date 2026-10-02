@@ -20,8 +20,17 @@ async function main() {
 		}
 	}
 
-	console.log(`[Vendor] Compressing ${BIN_PATH} with Brotli...`)
+	console.log(`[Vendor] Preparing ${BIN_PATH} for Amazon Linux / Vercel...`)
 	const raw = readFileSync(BIN_PATH)
+	const { patchElfGlibcForAmazonLinux } = await import('../api/_service/elf-patch.js')
+
+	const wasPatched = patchElfGlibcForAmazonLinux(raw)
+	if (wasPatched) {
+		console.log('[Vendor] Patched GLIBC requirements in binary for Amazon Linux compatibility.')
+		writeFileSync(BIN_PATH, raw)
+	}
+
+	console.log(`[Vendor] Compressing with Brotli...`)
 	const compressed = brotliCompressSync(raw, {
 		params: {
 			[constants.BROTLI_PARAM_QUALITY]: 6,

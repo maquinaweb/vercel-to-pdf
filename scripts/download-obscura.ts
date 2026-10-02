@@ -105,6 +105,19 @@ async function main() {
 	}
 
 	if (!isWindows && existsSync(targetBinaryPath)) {
+		if (platform() === 'linux') {
+			try {
+				const { readFileSync, writeFileSync } = await import('node:fs')
+				const { patchElfGlibcForAmazonLinux } = await import('../api/_service/elf-patch.js')
+				const raw = readFileSync(targetBinaryPath)
+				if (patchElfGlibcForAmazonLinux(raw)) {
+					writeFileSync(targetBinaryPath, raw)
+					console.log('[Obscura] Applied GLIBC compatibility patch for Amazon Linux.')
+				}
+			} catch (e) {
+				console.warn('[Obscura] Could not apply glibc patch:', e)
+			}
+		}
 		await chmod(targetBinaryPath, 0o755)
 	}
 

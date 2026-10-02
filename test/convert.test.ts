@@ -64,3 +64,19 @@ describe('PDF Generation with Obscura', () => {
 		expect(header).toBe('%PDF')
 	}, 35000)
 })
+
+describe('Amazon Linux / Vercel GLIBC Compatibility', () => {
+	it('should not contain unpatched GLIBC_2.35 requirements in binary', async () => {
+		const { readFileSync, existsSync } = await import('node:fs')
+		const { join } = await import('node:path')
+		const binPath = join(import.meta.dir, '..', 'bin', 'obscura')
+		if (existsSync(binPath)) {
+			const buf = readFileSync(binPath)
+			// Ensure hypotf was patched and no GLIBC_2.35 verneed exists
+			const { patchElfGlibcForAmazonLinux } = await import('../api/_service/elf-patch.js')
+			// It was already patched, so patching again should return false (idempotent)
+			const rePatched = patchElfGlibcForAmazonLinux(buf)
+			expect(rePatched).toBe(false)
+		}
+	})
+})
