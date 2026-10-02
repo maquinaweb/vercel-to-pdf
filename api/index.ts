@@ -40,6 +40,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 		const height = req.query.height ? Number.parseInt(req.query.height as string, 10) : undefined
 		const viewport = width && height ? { width, height } : undefined
 
+		const scale = req.query.scale ? Number.parseFloat(req.query.scale as string) : undefined
+
+		let margin: ConvertOptions['margin'] | undefined
+		if (req.query.margin !== undefined) {
+			const m = req.query.margin as string
+			margin = { top: m, bottom: m, left: m, right: m }
+		} else if (
+			req.query.marginTop ||
+			req.query.marginBottom ||
+			req.query.marginLeft ||
+			req.query.marginRight
+		) {
+			margin = {
+				top: (req.query.marginTop as string) ?? 0,
+				bottom: (req.query.marginBottom as string) ?? 0,
+				left: (req.query.marginLeft as string) ?? 0,
+				right: (req.query.marginRight as string) ?? 0,
+			}
+		}
+
 		console.log(`[Convert] Converting URL to PDF: ${targetUrl}`)
 
 		const pdfBuffer = await getPdf(targetUrl, {
@@ -47,6 +67,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 			landscape,
 			waitUntil,
 			viewport,
+			scale,
+			margin,
 		})
 
 		if (!pdfBuffer || pdfBuffer.length === 0) {

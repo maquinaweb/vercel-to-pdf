@@ -35,6 +35,19 @@ export interface ConvertOptions {
 	 * Whether to scroll down the page to trigger lazy loading (default: true)
 	 */
 	scrollLazyLoad?: boolean
+	/**
+	 * Scale of the webpage rendering (between 0.1 and 2, default: 1)
+	 */
+	scale?: number
+	/**
+	 * Paper margins (default: ~10mm)
+	 */
+	margin?: {
+		top?: string | number
+		bottom?: string | number
+		left?: string | number
+		right?: string | number
+	}
 }
 
 /**
@@ -130,6 +143,45 @@ export async function getPdf(rawUrl: string, options: ConvertOptions = {}): Prom
 			}
 		}
 
+		// Wait for web fonts to load and layout to settle
+		try {
+			await page.evaluate(async () => {
+				if (document.fonts?.ready) {
+					await document.fonts.ready
+				}
+				await new Promise((resolve) => setTimeout(resolve, 80))
+			})
+		} catch {
+			// Ignore if document.fonts is not supported
+		}
+
+		// Inject print styling for sharp text, images and SVG edges
+		try {
+			await page.evaluate(() => {
+				const style = document.createElement('style')
+				style.textContent = `
+					*, *::before, *::after {
+						-webkit-font-smoothing: antialiased !important;
+						-moz-osx-font-smoothing: grayscale !important;
+						text-rendering: geometricPrecision !important;
+					}
+					svg, rect, table {
+						shape-rendering: crispEdges !important;
+					}
+					img {
+						image-rendering: -webkit-optimize-contrast !important;
+					}
+					html, body {
+						-webkit-print-color-adjust: exact !important;
+						print-color-adjust: exact !important;
+					}
+				`
+				document.head?.appendChild(style)
+			})
+		} catch {
+			// Ignore if evaluation is restricted
+		}
+
 		// Emulate screen media if supported
 		try {
 			await page.emulateMediaType('screen')
@@ -142,6 +194,8 @@ export async function getPdf(rawUrl: string, options: ConvertOptions = {}): Prom
 			format: options.format ?? 'A4',
 			landscape: options.landscape ?? false,
 			printBackground: options.printBackground ?? true,
+			scale: options.scale ?? 1,
+			margin: options.margin,
 		})
 
 		return Buffer.from(pdfData)
