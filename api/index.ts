@@ -36,12 +36,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 		const landscape = req.query.landscape === 'true' || req.query.landscape === '1'
 		const waitUntil = (req.query.waitUntil as ConvertOptions['waitUntil']) || 'load'
 
+		const width = req.query.width ? Number.parseInt(req.query.width as string, 10) : undefined
+		const height = req.query.height ? Number.parseInt(req.query.height as string, 10) : undefined
+		const viewport = width && height ? { width, height } : undefined
+
 		console.log(`[Convert] Converting URL to PDF: ${targetUrl}`)
 
 		const pdfBuffer = await getPdf(targetUrl, {
 			format,
 			landscape,
 			waitUntil,
+			viewport,
 		})
 
 		if (!pdfBuffer || pdfBuffer.length === 0) {

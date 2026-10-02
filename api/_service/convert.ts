@@ -78,8 +78,9 @@ export async function getPdf(rawUrl: string, options: ConvertOptions = {}): Prom
 	try {
 		page = await browser.newPage()
 
-		const viewport = options.viewport ?? { width: 1440, height: 900 }
-		await page.setViewport(viewport).catch(() => {})
+		if (options.viewport) {
+			await page.setViewport(options.viewport).catch(() => {})
+		}
 
 		// Visit URL with specified wait condition
 		try {
