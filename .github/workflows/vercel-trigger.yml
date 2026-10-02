@@ -3,13 +3,13 @@ name: Trigger Vercel deployment
 on:
   push:
     branches:
-      - main
+      - master
 
 permissions:
   contents: write
 
 concurrency:
-  group: vercel-trigger-main
+  group: vercel-trigger-master
   cancel-in-progress: true
 
 jobs:
@@ -34,4 +34,4 @@ jobs:
           git commit --allow-empty \
             -m "chore: trigger Vercel deployment [vercel-trigger]"
 
-          git push origin HEAD:main
+          git push origin HEAD:master
